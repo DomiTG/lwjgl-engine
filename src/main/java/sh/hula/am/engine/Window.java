@@ -1,17 +1,17 @@
 package sh.hula.am.engine;
 
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL20;
-import org.lwjgl.opengl.GL30;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
-
-import static org.lwjgl.opengl.GL11.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Window {
 
@@ -20,19 +20,10 @@ public class Window {
     private int height;
     private String title;
 
-    private Timer timer;
-    private FrameCounter frameCounter;
-    private Shader blockShader;
-
-    private BlockRenderer blockRenderer;
-    private boolean initialized = false;
-
     public Window(int width, int height, String title) {
         this.width = width;
         this.height = height;
         this.title = title;
-        this.timer = new Timer(60);
-        this.frameCounter = new FrameCounter();
     }
 
     public void createDisplay() {
@@ -72,24 +63,26 @@ public class Window {
         GLFW.glfwMakeContextCurrent(window);
         GL.createCapabilities();
         GLFW.glfwShowWindow(window);
-        blockRenderer = new BlockRenderer();
-        blockRenderer.init();
+        GLFW.glfwSetFramebufferSizeCallback(window, (window, width, height) -> {
+            GL11.glViewport(0, 0, width, height);
+        });
+
     }
-
-
     public void updateDisplay() {
-        //render 3D block
-        this.timer.update();
-        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
-        GL11.glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        blockRenderer.draw(
-                new float[]{0.0f, 0.0f, 0.0f},
-                new float[]{0.0f, 0.0f, 0.0f},
-                new float[]{0.0f, 0.0f, 0.0f}
-        );
-
         GLFW.glfwSwapBuffers(window);
         GLFW.glfwPollEvents();
+    }
+
+    public boolean isKeyPressed(int keyCode) {
+        return GLFW.glfwGetKey(window, keyCode) == GLFW.GLFW_PRESS;
+    }
+
+    public boolean isMouseGrabbed() {
+        return GLFW.glfwGetInputMode(window, GLFW.GLFW_CURSOR) == GLFW.GLFW_CURSOR_DISABLED;
+    }
+
+    public void getMouseDelta(double[] deltaX, double[] deltaY) {
+        GLFW.glfwGetCursorPos(window, deltaX, deltaY);
     }
 
     public boolean shouldClose() {
@@ -117,11 +110,9 @@ public class Window {
         return title;
     }
 
-    public Timer getTimer() {
-        return timer;
+    public void setTitle(String title) {
+        this.title = title;
+        GLFW.glfwSetWindowTitle(window, title);
     }
 
-    public FrameCounter getFrameCounter() {
-        return frameCounter;
-    }
 }

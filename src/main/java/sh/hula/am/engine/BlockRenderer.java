@@ -1,140 +1,165 @@
 package sh.hula.am.engine;
-
-import static org.lwjgl.opengl.GL30.*;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.GL30;
+import org.lwjgl.system.MemoryUtil;
+
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 public class BlockRenderer {
+
     private int vaoId;
     private int vboId;
     private int eboId;
-    private int shaderProgram;
+    private int vertexCount;
+    private ShaderProgram shader;
 
-    public void init() {
-        // Vertex data for a cube (positions only)
-        float[] vertices = {
-                // Front face
-                -0.5f, -0.5f,  0.5f,
-                0.5f, -0.5f,  0.5f,
-                0.5f,  0.5f,  0.5f,
-                -0.5f,  0.5f,  0.5f,
-                // Back face
-                -0.5f, -0.5f, -0.5f,
-                0.5f, -0.5f, -0.5f,
-                0.5f,  0.5f, -0.5f,
-                -0.5f,  0.5f, -0.5f
-        };
+    private List<Block> blocks = new ArrayList<>();
+    
+    // Vertex data for a cube
+    private static final float[] VERTICES = {
+        // Front face
+        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f, // Top left
+         0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // Top right
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f, // Bottom right
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // Bottom left
+        
+        // Back face
+        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+        
+        // Top face
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+        
+        // Bottom face
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        
+        // Right face
+         0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        
+        // Left face
+        -0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  1.0f, 0.0f
+    };
+    
+    private static final int[] INDICES = {
+        0,  1,  2,  2,  3,  0,  // Front
+        4,  5,  6,  6,  7,  4,  // Back
+        8,  9,  10, 10, 11, 8,  // Top
+        12, 13, 14, 14, 15, 12, // Bottom
+        16, 17, 18, 18, 19, 16, // Right
+        20, 21, 22, 22, 23, 20  // Left
+    };
 
-        // Index data
-        int[] indices = {
-                // Front
-                0, 1, 2,
-                2, 3, 0,
-                // Right
-                1, 5, 6,
-                6, 2, 1,
-                // Back
-                5, 4, 7,
-                7, 6, 5,
-                // Left
-                4, 0, 3,
-                3, 7, 4,
-                // Top
-                3, 2, 6,
-                6, 7, 3,
-                // Bottom
-                4, 5, 1,
-                1, 0, 4
-        };
+    public BlockRenderer() {
+        setupShader();
+        setupMesh();
+    }
 
-        // Create and compile vertex shader
-        int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vertexShader,
-                "#version 410 core\n" +
-                        "layout (location = 0) in vec3 position;\n" +
-                        "uniform mat4 model;\n" +
-                        "uniform mat4 view;\n" +
-                        "uniform mat4 projection;\n" +
-                        "void main() {\n" +
-                        "    gl_Position = projection * view * model * vec4(position, 1.0);\n" +
-                        "}"
-        );
-        glCompileShader(vertexShader);
-
-        // Create and compile fragment shader
-        int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fragmentShader,
-                "#version 410 core\n" +
-                        "out vec4 FragColor;\n" +
-                        "void main() {\n" +
-                        "    FragColor = vec4(0.0, 1.0, 0.0, 1.0);\n" + // Green color
-                        "}"
-        );
-        glCompileShader(fragmentShader);
-
-        // Create shader program
-        shaderProgram = glCreateProgram();
-        glAttachShader(shaderProgram, vertexShader);
-        glAttachShader(shaderProgram, fragmentShader);
-        glLinkProgram(shaderProgram);
-
-        // Clean up shaders
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
-
-        // Create VAO, VBO, and EBO
-        vaoId = glGenVertexArrays();
-        vboId = glGenBuffers();
-        eboId = glGenBuffers();
-
+    private void setupShader() {
+        shader = new ShaderProgram();
+        try {
+            String vertexShader = ShaderUtils.loadResource("block_vertex.glsl");
+            String fragmentShader = ShaderUtils.loadResource("block_fragment.glsl");
+            shader.createVertexShader(vertexShader);
+            shader.createFragmentShader(fragmentShader);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+        shader.link();
+        
+        // Create uniforms for world and projection matrices
+        shader.createUniform("projectionMatrix");
+        shader.createUniform("viewMatrix");
+        shader.createUniform("modelMatrix");
+        shader.createUniform("color");
+    }
+    
+    private void setupMesh() {
+        FloatBuffer verticesBuffer = null;
+        IntBuffer indicesBuffer = null;
+        try {
+            // Create VAO
+            vaoId = GL30.glGenVertexArrays();
+            GL30.glBindVertexArray(vaoId);
+            
+            // Create VBO
+            vboId = GL30.glGenBuffers();
+            verticesBuffer = BufferUtils.createFloatBuffer(VERTICES.length);
+            verticesBuffer.put(VERTICES).flip();
+            GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, vboId);
+            GL30.glBufferData(GL30.GL_ARRAY_BUFFER, verticesBuffer, GL30.GL_STATIC_DRAW);
+            
+            // Create EBO
+            eboId = GL30.glGenBuffers();
+            indicesBuffer = BufferUtils.createIntBuffer(INDICES.length);
+            indicesBuffer.put(INDICES).flip();
+            GL30.glBindBuffer(GL30.GL_ELEMENT_ARRAY_BUFFER, eboId);
+            GL30.glBufferData(GL30.GL_ELEMENT_ARRAY_BUFFER, indicesBuffer, GL30.GL_STATIC_DRAW);
+            
+            // Position attribute
+            GL30.glVertexAttribPointer(0, 3, GL30.GL_FLOAT, false, 5 * Float.BYTES, 0);
+            GL30.glEnableVertexAttribArray(0);
+            
+            // Texture coordinate attribute
+            GL30.glVertexAttribPointer(1, 2, GL30.GL_FLOAT, false, 5 * Float.BYTES, 3 * Float.BYTES);
+            GL30.glEnableVertexAttribArray(1);
+            
+            vertexCount = INDICES.length;
+        } finally {
+            if (verticesBuffer != null) {
+                MemoryUtil.memFree(verticesBuffer);
+            }
+            if (indicesBuffer != null) {
+                MemoryUtil.memFree(indicesBuffer);
+            }
+        }
+    }
+    
+    public void render(Camera camera, Block block) {
+        shader.bind();
+        
+        // Bind texture
+        //need to return Matrix4f
+        shader.setUniform("color", block.getColor().x, block.getColor().y, block.getColor().z, 1.0f);
+        // Update uniforms
+        shader.setUniform("projectionMatrix", camera.getProjectionMatrix());
+        shader.setUniform("viewMatrix", camera.getViewMatrix());
+        shader.setUniform("modelMatrix", block.getModelMatrix());
+        
         // Bind VAO
-        glBindVertexArray(vaoId);
-
-        // Put vertices in VBO
-        FloatBuffer vertexBuffer = BufferUtils.createFloatBuffer(vertices.length);
-        vertexBuffer.put(vertices).flip();
-
-        glBindBuffer(GL_ARRAY_BUFFER, vboId);
-        glBufferData(GL_ARRAY_BUFFER, vertexBuffer, GL_STATIC_DRAW);
-
-        // Put indices in EBO
-        IntBuffer indexBuffer = BufferUtils.createIntBuffer(indices.length);
-        indexBuffer.put(indices).flip();
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboId);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexBuffer, GL_STATIC_DRAW);
-
-        // Set vertex attributes
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * Float.BYTES, 0);
-        glEnableVertexAttribArray(0);
-
-        // Unbind VAO
-        glBindVertexArray(0);
+        GL30.glBindVertexArray(vaoId);
+        
+        // Draw
+        GL30.glDrawElements(GL30.GL_TRIANGLES, vertexCount, GL30.GL_UNSIGNED_INT, 0);
+        
+        // Restore state
+        GL30.glBindVertexArray(0);
+        shader.unbind();
     }
-
-    public void draw(float[] modelMatrix, float[] viewMatrix, float[] projectionMatrix) {
-        glUseProgram(shaderProgram);
-
-        // Set uniforms
-        int modelLoc = glGetUniformLocation(shaderProgram, "model");
-        int viewLoc = glGetUniformLocation(shaderProgram, "view");
-        int projLoc = glGetUniformLocation(shaderProgram, "projection");
-
-        glUniformMatrix4fv(modelLoc, false, modelMatrix);
-        glUniformMatrix4fv(viewLoc, false, viewMatrix);
-        glUniformMatrix4fv(projLoc, false, projectionMatrix);
-
-        // Draw cube
-        glBindVertexArray(vaoId);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
-    }
-
+    
     public void cleanup() {
-        glDeleteVertexArrays(vaoId);
-        glDeleteBuffers(vboId);
-        glDeleteBuffers(eboId);
-        glDeleteProgram(shaderProgram);
+        shader.cleanup();
+        GL30.glDeleteVertexArrays(vaoId);
+        GL30.glDeleteBuffers(vboId);
+        GL30.glDeleteBuffers(eboId);
     }
 }
