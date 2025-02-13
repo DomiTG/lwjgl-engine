@@ -66,6 +66,7 @@ public class Window {
         GLFW.glfwSetFramebufferSizeCallback(window, (window, width, height) -> {
             GL11.glViewport(0, 0, width, height);
         });
+        GLFW.glfwSetInputMode(window, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
 
     }
     public void updateDisplay() {

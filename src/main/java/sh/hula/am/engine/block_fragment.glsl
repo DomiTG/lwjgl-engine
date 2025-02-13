@@ -8,4 +8,6 @@ uniform vec4 color; // Add uniform for color (rgba)
 void main() {
     // Set fragment color directly from uniform
     fragColor = color;
+    //outline
+    
 }

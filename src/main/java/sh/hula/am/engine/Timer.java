@@ -3,7 +3,7 @@ package sh.hula.am.engine;
 public class Timer {
 
     private double lastTime;
-    private double deltaTime;
+    private float deltaTime;
     private double frameTime; // Time per frame in seconds
 
     public Timer(int fps) {
@@ -12,8 +12,8 @@ public class Timer {
     }
 
     public void update() {
-        double currentTime = getTime();
-        deltaTime = currentTime - lastTime;
+        float currentTime = (float) getTime();
+        deltaTime = currentTime - (float) lastTime;
 
         // Enforce max FPS
         double sleepTime = frameTime - deltaTime;
@@ -28,7 +28,7 @@ public class Timer {
         lastTime = getTime(); // Update lastTime after sleeping
     }
 
-    public double getDeltaTime() {
+    public float getDeltaTime() {
         return deltaTime;
     }
 

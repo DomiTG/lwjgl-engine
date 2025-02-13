@@ -18,8 +18,6 @@ public class BlockRenderer {
     private int eboId;
     private int vertexCount;
     private ShaderProgram shader;
-
-    private List<Block> blocks = new ArrayList<>();
     
     // Vertex data for a cube
     private static final float[] VERTICES = {
@@ -150,6 +148,37 @@ public class BlockRenderer {
         
         // Draw
         GL30.glDrawElements(GL30.GL_TRIANGLES, vertexCount, GL30.GL_UNSIGNED_INT, 0);
+        
+        // Restore state
+        GL30.glBindVertexArray(0);
+        shader.unbind();
+    }
+
+    public void renderWithOutline(Camera camera, Block block) {
+        // First pass: Render the block normally
+        render(camera, block);
+        
+        // Second pass: Render the outline
+        shader.bind();
+        
+        // Set uniform color to black for outline
+        shader.setUniform("color", 0.0f, 0.0f, 0.0f, 1.0f);
+        
+        // Update transformation matrices
+        shader.setUniform("projectionMatrix", camera.getProjectionMatrix());
+        shader.setUniform("viewMatrix", camera.getViewMatrix());
+        
+        // Slightly scale up the block model matrix for outline effect
+        Matrix4f outlineMatrix = new Matrix4f(block.getModelMatrix()).scale(1.002f);
+        shader.setUniform("modelMatrix", outlineMatrix);
+        
+        // Bind VAO
+        GL30.glBindVertexArray(vaoId);
+        
+        // Draw outline with line mode
+        GL30.glPolygonMode(GL30.GL_FRONT_AND_BACK, GL30.GL_LINE);
+        GL30.glDrawElements(GL30.GL_LINES, vertexCount, GL30.GL_UNSIGNED_INT, 0);
+        GL30.glPolygonMode(GL30.GL_FRONT_AND_BACK, GL30.GL_FILL); // Restore fill mode
         
         // Restore state
         GL30.glBindVertexArray(0);

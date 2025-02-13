@@ -1,67 +1,103 @@
 package sh.hula.am.engine;
 
+import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
 public class Camera {
     private Vector3f position;
-    private float pitch;  // rotation around X-axis
-    private float yaw;    // rotation around Y-axis
-    private float roll;   // rotation around Z-axis
-    private float moveSpeed = 0.05f;
+    private Vector3f front;
+    private Vector3f up;
+    private Vector3f right;
+    private float pitch;
+    private float yaw;
+    private float roll;
+    private float moveSpeed = 5.0f; // Increased base speed
     private float mouseSensitivity = 0.1f;
     
     private Matrix4f viewMatrix;
     private Matrix4f projectionMatrix;
+    private FrustumIntersection frustum;
     
     public Camera(float x, float y, float z) {
         this.position = new Vector3f(x, y, z);
+        this.front = new Vector3f(0, 0, -1);
+        this.up = new Vector3f(0, 1, 0);
+        this.right = new Vector3f(1, 0, 0);
         this.pitch = 0;
-        this.yaw = 0;
+        this.yaw = -90; // Makes camera face -Z by default
         this.roll = 0;
         this.viewMatrix = new Matrix4f();
         this.projectionMatrix = new Matrix4f();
+        this.frustum = new FrustumIntersection();
         createProjectionMatrix();
     }
     
-    public void update(Window window) {
-        // Handle keyboard input
+    public void update(Window window, float deltaTime) {
+        // Handle keyboard input with delta time for smooth movement
+        float actualSpeed = moveSpeed * deltaTime;
+        
         if (window.isKeyPressed(GLFW.GLFW_KEY_W)) {
-            moveForward();
+            position.add(new Vector3f(front).mul(actualSpeed));
         }
         if (window.isKeyPressed(GLFW.GLFW_KEY_S)) {
-            moveBackward();
+            position.sub(new Vector3f(front).mul(actualSpeed));
         }
         if (window.isKeyPressed(GLFW.GLFW_KEY_A)) {
-            moveLeft();
+            position.sub(new Vector3f(right).mul(actualSpeed));
         }
         if (window.isKeyPressed(GLFW.GLFW_KEY_D)) {
-            moveRight();
+            position.add(new Vector3f(right).mul(actualSpeed));
         }
         if (window.isKeyPressed(GLFW.GLFW_KEY_SPACE)) {
-            moveUp();
+            position.add(new Vector3f(up).mul(actualSpeed));
         }
         if (window.isKeyPressed(GLFW.GLFW_KEY_LEFT_SHIFT)) {
-            moveDown();
+            position.sub(new Vector3f(up).mul(actualSpeed));
         }
-    
         
-        // Update view matrix
         updateViewMatrix();
     }
     
+    public void handleMouseInput(double xoffset, double yoffset) {
+        xoffset *= mouseSensitivity;
+        yoffset *= mouseSensitivity;
+
+        yaw += xoffset;
+        pitch -= yoffset;
+
+        // Constrain pitch to prevent camera flipping
+        if (pitch > 89.0f) pitch = 89.0f;
+        if (pitch < -89.0f) pitch = -89.0f;
+
+        updateVectors();
+    }
+    
+    private void updateVectors() {
+        // Calculate new front vector
+        float x = (float) (Math.cos(Math.toRadians(pitch)) * Math.cos(Math.toRadians(yaw)));
+        float y = (float) Math.sin(Math.toRadians(pitch));
+        float z = (float) (Math.cos(Math.toRadians(pitch)) * Math.sin(Math.toRadians(yaw)));
+        front.set(x, y, z).normalize();
+        
+        // Recalculate right and up vectors
+        right.set(front).cross(new Vector3f(0, 1, 0)).normalize();
+        up.set(right).cross(front).normalize();
+    }
+    
     private void updateViewMatrix() {
-        viewMatrix.identity();
-        viewMatrix.rotate((float) Math.toRadians(pitch), new Vector3f(1, 0, 0))
-                 .rotate((float) Math.toRadians(yaw), new Vector3f(0, 1, 0))
-                 .rotate((float) Math.toRadians(roll), new Vector3f(0, 0, 1))
-                 .translate(-position.x, -position.y, -position.z);
+        viewMatrix.identity()
+                 .lookAt(position, 
+                         new Vector3f(position).add(front), 
+                         up);
+        Matrix4f projectionViewMatrix = new Matrix4f(projectionMatrix).mul(viewMatrix);
+        frustum.set(projectionViewMatrix);
     }
     
     private void createProjectionMatrix() {
-        float aspectRatio = 16.0f / 9.0f;  // Adjust based on your window
-        float FOV = 70;  // Field of view in degrees
+        float aspectRatio = 16.0f / 9.0f;
+        float FOV = 70; 
         float nearPlane = 0.1f;
         float farPlane = 1000f;
         
@@ -114,12 +150,15 @@ public class Camera {
         return position;
     }
     
-    // Setters for customization
     public void setMoveSpeed(float moveSpeed) {
         this.moveSpeed = moveSpeed;
     }
     
     public void setMouseSensitivity(float mouseSensitivity) {
         this.mouseSensitivity = mouseSensitivity;
+    }
+
+    public boolean isVisible(Block block) {
+        return frustum.testAab(block.getPosition().x, block.getPosition().y, block.getPosition().z, block.getPosition().x + block.getScale(), block.getPosition().y + block.getScale(), block.getPosition().z + block.getScale());
     }
 }
