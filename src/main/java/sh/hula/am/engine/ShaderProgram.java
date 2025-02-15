@@ -106,6 +106,14 @@ public class ShaderProgram {
         GL30.glUniform1i(uniforms.get(uniformName), value);
     }
 
+    public void setUniform(String uniformName, int v1, int v2) {
+        GL30.glUniform2i(uniforms.get(uniformName), v1, v2);
+    }
+
+    public void setUniform(String uniformName, float v1, float v2) {
+        GL30.glUniform2f(uniforms.get(uniformName), v1, v2);
+    }
+
     public void setUniform(String uniformName, float value) {
         GL30.glUniform1f(uniforms.get(uniformName), value);
     }

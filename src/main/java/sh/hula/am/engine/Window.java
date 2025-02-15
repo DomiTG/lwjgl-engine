@@ -1,7 +1,5 @@
 package sh.hula.am.engine;
 
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
@@ -10,8 +8,6 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Window {
 
@@ -66,8 +62,6 @@ public class Window {
         GLFW.glfwSetFramebufferSizeCallback(window, (window, width, height) -> {
             GL11.glViewport(0, 0, width, height);
         });
-        GLFW.glfwSetInputMode(window, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
-
     }
     public void updateDisplay() {
         GLFW.glfwSwapBuffers(window);
@@ -114,6 +108,10 @@ public class Window {
     public void setTitle(String title) {
         this.title = title;
         GLFW.glfwSetWindowTitle(window, title);
+    }
+
+    public void setCursorMode(int mode) {
+        GLFW.glfwSetInputMode(window, GLFW.GLFW_CURSOR, mode);
     }
 
 }
